@@ -2,8 +2,7 @@ import PropTypes from 'prop-types';
 import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect';
-import { fetchImportLists, deleteImportList } from 'Store/Actions/settingsActions';
-import { fetchRootFolders } from 'Store/Actions/rootFolderActions';
+import { fetchImportLists, deleteImportList, fetchRootFolders } from 'Store/Actions/settingsActions';
 import ImportLists from './ImportLists';
 
 function createMapStateToProps() {

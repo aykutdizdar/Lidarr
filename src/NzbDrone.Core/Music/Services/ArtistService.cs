@@ -155,10 +155,6 @@ namespace NzbDrone.Core.Music
                 .OrderByDescending(s => s.MatchProb)
                 .ToList();
 
-            _logger.Trace("\nFuzzy artist match on '{0}':\n{1}",
-                          title,
-                          string.Join("\n", sortedArtists.Select(x => $"[{x.Artist.Name}] {x.Artist.CleanName}: {x.MatchProb}")));
-
             return sortedArtists.TakeWhile((x, i) => i == 0 || sortedArtists[i - 1].MatchProb - x.MatchProb < fuzzGap)
                 .TakeWhile((x, i) => x.MatchProb > fuzzThreshold || (i > 0 && sortedArtists[i - 1].MatchProb > fuzzThreshold))
                 .Select(x => x.Artist)

@@ -22,6 +22,9 @@ using NzbDrone.Common.Serializer;
 using NzbDrone.Core.Parser;
 using NzbDrone.Core.MediaFiles.TrackImport.Aggregation.Aggregators;
 using NzbDrone.Core.MediaFiles.TrackImport.Aggregation;
+using NzbDrone.Core.MediaFiles.TrackImport;
+using NzbDrone.Core.ImportLists.Exclusions;
+using NzbDrone.Core.MediaFiles;
 
 namespace NzbDrone.Core.Test.MediaFiles.TrackImport.Identification
 {
@@ -45,6 +48,8 @@ namespace NzbDrone.Core.Test.MediaFiles.TrackImport.Identification
             Mocker.SetConstant<IAlbumRepository>(Mocker.Resolve<AlbumRepository>());
             Mocker.SetConstant<IReleaseRepository>(Mocker.Resolve<ReleaseRepository>());
             Mocker.SetConstant<ITrackRepository>(Mocker.Resolve<TrackRepository>());
+            Mocker.SetConstant<IImportListExclusionRepository>(Mocker.Resolve<ImportListExclusionRepository>());
+            Mocker.SetConstant<IMediaFileRepository>(Mocker.Resolve<MediaFileRepository>());
 
             Mocker.GetMock<IMetadataProfileService>().Setup(x => x.Exists(It.IsAny<int>())).Returns(true);
 
@@ -54,6 +59,8 @@ namespace NzbDrone.Core.Test.MediaFiles.TrackImport.Identification
             Mocker.SetConstant<IAlbumService>(Mocker.Resolve<AlbumService>());
             Mocker.SetConstant<IReleaseService>(Mocker.Resolve<ReleaseService>());
             Mocker.SetConstant<ITrackService>(Mocker.Resolve<TrackService>());
+            Mocker.SetConstant<IImportListExclusionService>(Mocker.Resolve<ImportListExclusionService>());
+            Mocker.SetConstant<IMediaFileService>(Mocker.Resolve<MediaFileService>());
 
             Mocker.SetConstant<IConfigService>(Mocker.Resolve<IConfigService>());
             Mocker.SetConstant<IProvideArtistInfo>(Mocker.Resolve<SkyHookProxy>());
@@ -69,6 +76,7 @@ namespace NzbDrone.Core.Test.MediaFiles.TrackImport.Identification
             Mocker.GetMock<IAddArtistValidator>().Setup(x => x.Validate(It.IsAny<Artist>())).Returns(new ValidationResult());
 
             Mocker.SetConstant<ITrackGroupingService>(Mocker.Resolve<TrackGroupingService>());
+            Mocker.SetConstant<ICandidateService>(Mocker.Resolve<CandidateService>());
 
             // set up the augmenters
             List<IAggregate<LocalAlbumRelease>> aggregators = new List<IAggregate<LocalAlbumRelease>> {
@@ -78,7 +86,6 @@ namespace NzbDrone.Core.Test.MediaFiles.TrackImport.Identification
             Mocker.SetConstant<IAugmentingService>(Mocker.Resolve<AugmentingService>());
             
             Subject = Mocker.Resolve<IdentificationService>();
-
         }
 
         private void GivenMetadataProfile(MetadataProfile profile)
@@ -167,6 +174,7 @@ namespace NzbDrone.Core.Test.MediaFiles.TrackImport.Identification
 
             var artists = GivenArtists(testcase.LibraryArtists);
             var specifiedArtist = artists.SingleOrDefault(x => x.Metadata.Value.ForeignArtistId == testcase.Artist);
+            var idOverrides = new IdentificationOverrides { Artist = specifiedArtist };
 
             var tracks = testcase.Tracks.Select(x => new LocalTrack {
                     Path = x.Path.AsOsAgnostic(),
@@ -178,7 +186,14 @@ namespace NzbDrone.Core.Test.MediaFiles.TrackImport.Identification
                 GivenFingerprints(testcase.Fingerprints);
             }
 
-            var result = Subject.Identify(tracks, specifiedArtist, null, null, testcase.NewDownload, testcase.SingleRelease, false);
+            var config = new ImportDecisionMakerConfig
+            {
+                NewDownload = testcase.NewDownload,
+                SingleRelease = testcase.SingleRelease,
+                IncludeExisting = false
+            };
+
+            var result = Subject.Identify(tracks, idOverrides, config);
 
             TestLogger.Debug($"Found releases:\n{result.Where(x => x.AlbumRelease != null).Select(x => x.AlbumRelease?.ForeignReleaseId).ToJson()}");
 

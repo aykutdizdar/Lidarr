@@ -7,15 +7,14 @@ using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Music;
 using System.Collections.Generic;
 using System.Linq;
-using System;
 using NzbDrone.Core.Parser;
-using NzbDrone.Common.Serializer;
 using Moq;
+using NzbDrone.Core.MediaFiles.TrackImport;
 
 namespace NzbDrone.Core.Test.MediaFiles.TrackImport.Identification
 {
     [TestFixture]
-    public class GetCandidatesFixture : CoreTest<IdentificationService>
+    public class GetCandidatesFixture : CoreTest<CandidateService>
     {
 
         private ArtistMetadata artist;
@@ -122,7 +121,7 @@ namespace NzbDrone.Core.Test.MediaFiles.TrackImport.Identification
 
             var local = GivenLocalAlbumRelease();
 
-            Subject.GetCandidatesFromFingerprint(local, null, null, null, false).Should().BeEquivalentTo(new List<CandidateAlbumRelease>());
+            Subject.GetDbCandidatesFromFingerprint(local, null, false).Should().BeEquivalentTo(new List<CandidateAlbumRelease>());
         }
 
         [Test]
@@ -132,8 +131,12 @@ namespace NzbDrone.Core.Test.MediaFiles.TrackImport.Identification
             var release = GivenAlbumRelease("album", tracks);
             var localTracks = GivenLocalTracks(tracks, release);
             var localAlbumRelease = new LocalAlbumRelease(localTracks);
+            var idOverrides = new IdentificationOverrides
+            {
+                AlbumRelease = release
+            };
 
-            Subject.GetCandidatesFromTags(localAlbumRelease, null, null, release, false).Should().BeEquivalentTo(
+            Subject.GetDbCandidatesFromTags(localAlbumRelease, idOverrides, false).Should().BeEquivalentTo(
                 new List<CandidateAlbumRelease> { new CandidateAlbumRelease(release) }
                 );
         }
@@ -151,7 +154,7 @@ namespace NzbDrone.Core.Test.MediaFiles.TrackImport.Identification
                   .Setup(x => x.GetReleaseByForeignReleaseId("xxx", true))
                   .Returns(release);
 
-            Subject.GetCandidatesFromTags(localAlbumRelease, null, null, null, false).Should().BeEquivalentTo(
+            Subject.GetDbCandidatesFromTags(localAlbumRelease, null, false).Should().BeEquivalentTo(
                 new List<CandidateAlbumRelease> { new CandidateAlbumRelease(release) }
                 );
         }

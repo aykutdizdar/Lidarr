@@ -11,6 +11,7 @@ using NzbDrone.Core.MetadataSource.SkyHook.Resource;
 using NzbDrone.Core.Music;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Profiles.Metadata;
+using NzbDrone.Common.Serializer;
 
 namespace NzbDrone.Core.MetadataSource.SkyHook
 {
@@ -266,6 +267,21 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
             }
         }
 
+        public List<Album> SearchForNewAlbumByRecordingIds(List<string> recordingIds)
+        {
+            var ids = recordingIds.Where(x => x.IsNotNullOrWhiteSpace()).Distinct();
+            var httpRequest = _requestBuilder.GetRequestBuilder().Create()
+                .SetSegment("route", "search/fingerprint")
+                .Build();
+
+            httpRequest.SetContent(ids.ToJson());
+            httpRequest.Headers.ContentType = "application/json";
+
+            var httpResponse = _httpClient.Post<List<AlbumResource>>(httpRequest);
+
+            return httpResponse.Resource.SelectList(MapSearchResult);
+        }
+
         public List<Object> SearchForNewEntity(string title)
         {
             try
@@ -358,6 +374,16 @@ namespace NzbDrone.Core.MetadataSource.SkyHook
             if (resource.Releases != null)
             {
                 album.AlbumReleases = resource.Releases.Select(x => MapRelease(x, artistDict)).Where(x => x.TrackCount > 0).ToList();
+                // Monitor the release with most tracks
+                var mostTracks = album.AlbumReleases.Value.OrderByDescending(x => x.TrackCount).FirstOrDefault();
+                if (mostTracks != null)
+                {
+                    mostTracks.Monitored = true;
+                }
+            }
+            else
+            {
+                album.AlbumReleases = new List<AlbumRelease>();
             }
 
             album.AnyReleaseOk = true;

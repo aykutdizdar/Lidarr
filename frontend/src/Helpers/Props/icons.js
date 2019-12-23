@@ -182,6 +182,7 @@ export const QUICK = fasRocket;
 export const REFRESH = fasSync;
 export const REMOVE = fasTimes;
 export const REORDER = fasBars;
+export const RESCAN = fasFolderOpen;
 export const RESTART = fasRedoAlt;
 export const RESTORE = fasHistory;
 export const RETAG = fasEdit;

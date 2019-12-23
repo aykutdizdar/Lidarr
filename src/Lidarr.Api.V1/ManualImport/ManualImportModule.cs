@@ -70,7 +70,6 @@ namespace Lidarr.Api.V1.ManualImport
                 items.Add(new ManualImportItem {
                         Id = resource.Id,
                         Path = resource.Path,
-                        RelativePath = resource.RelativePath,
                         Name = resource.Name,
                         Size = resource.Size,
                         Artist = resource.Artist == null ? null : _artistService.GetArtist(resource.Artist.Id),

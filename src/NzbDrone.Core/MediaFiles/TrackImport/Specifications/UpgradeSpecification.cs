@@ -21,6 +21,12 @@ namespace NzbDrone.Core.MediaFiles.TrackImport.Specifications
 
         public Decision IsSatisfiedBy(LocalTrack localTrack, DownloadClientItem downloadClientItem)
         {
+            if (!localTrack.Tracks.Any(e => e.TrackFileId > 0))
+            {
+                // No existing tracks, skip.  This guards against new artists not having a QualityProfile.
+                return Decision.Accept();
+            }
+
             var downloadPropersAndRepacks = _configService.DownloadPropersAndRepacks;
             var qualityComparer = new QualityModelComparer(localTrack.Artist.QualityProfile);
 

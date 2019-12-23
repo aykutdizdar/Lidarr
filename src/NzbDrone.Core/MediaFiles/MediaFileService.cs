@@ -5,10 +5,11 @@ using NLog;
 using NzbDrone.Core.MediaFiles.Events;
 using NzbDrone.Core.Messaging.Events;
 using NzbDrone.Common;
-using NzbDrone.Core.Music;
 using System;
 using NzbDrone.Core.Music.Events;
 using NzbDrone.Common.Extensions;
+using NzbDrone.Core.Datastore.Events;
+using NzbDrone.Core.RootFolders;
 
 namespace NzbDrone.Core.MediaFiles
 {
@@ -24,15 +25,18 @@ namespace NzbDrone.Core.MediaFiles
         List<TrackFile> GetFilesByAlbum(int albumId);
         List<TrackFile> GetFilesByRelease(int releaseId);
         List<TrackFile> GetUnmappedFiles();
-        List<IFileInfo> FilterUnchangedFiles(List<IFileInfo> files, Artist artist, FilterFilesType filter);
+        List<IFileInfo> FilterUnchangedFiles(List<IFileInfo> files, FilterFilesType filter);
         TrackFile Get(int id);
         List<TrackFile> Get(IEnumerable<int> ids);
         List<TrackFile> GetFilesWithBasePath(string path);
+        List<TrackFile> GetFileWithPath(List<string> path);
         TrackFile GetFileWithPath(string path);
         void UpdateMediaInfo(List<TrackFile> trackFiles);
     }
 
-    public class MediaFileService : IMediaFileService, IHandleAsync<AlbumDeletedEvent>
+    public class MediaFileService : IMediaFileService,
+        IHandleAsync<AlbumDeletedEvent>,
+        IHandleAsync<ModelEvent<RootFolder>>
     {
         private readonly IEventAggregator _eventAggregator;
         private readonly IMediaFileRepository _mediaFileRepository;
@@ -93,11 +97,16 @@ namespace NzbDrone.Core.MediaFiles
             }
         }
 
-        public List<IFileInfo> FilterUnchangedFiles(List<IFileInfo> files, Artist artist, FilterFilesType filter)
+        public List<IFileInfo> FilterUnchangedFiles(List<IFileInfo> files, FilterFilesType filter)
         {
+            if (filter == FilterFilesType.None)
+            {
+                return files;
+            }
+            
             _logger.Debug($"Filtering {files.Count} files for unchanged files");
 
-            var knownFiles = GetFilesWithBasePath(artist.Path);
+            var knownFiles = GetFileWithPath(files.Select(x => x.FullName).ToList());
             _logger.Trace($"Got {knownFiles.Count} existing files");
 
             if (!knownFiles.Any()) return files;
@@ -153,6 +162,11 @@ namespace NzbDrone.Core.MediaFiles
             return _mediaFileRepository.GetFilesWithBasePath(path);
         }
 
+        public List<TrackFile> GetFileWithPath(List<string> path)
+        {
+            return _mediaFileRepository.GetFileWithPath(path);
+        }
+
         public TrackFile GetFileWithPath(string path)
         {
             return _mediaFileRepository.GetFileWithPath(path);
@@ -193,6 +207,15 @@ namespace NzbDrone.Core.MediaFiles
         public void UpdateMediaInfo(List<TrackFile> trackFiles)
         {
             _mediaFileRepository.SetFields(trackFiles, t => t.MediaInfo);
+        }
+
+        public void HandleAsync(ModelEvent<RootFolder> message)
+        {
+            if (message.Action == ModelAction.Deleted)
+            {
+                var files = GetFilesWithBasePath(message.Model.Path);
+                DeleteMany(files, DeleteMediaFileReason.Manual);
+            }
         }
     }
 }

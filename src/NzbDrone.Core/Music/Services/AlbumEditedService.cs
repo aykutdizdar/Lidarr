@@ -34,7 +34,7 @@ namespace NzbDrone.Core.Music
                     tracks.ForEach(x => x.TrackFileId = 0);
                     _trackService.SetFileIds(tracks);
 
-                    _commandQueueManager.Push(new RescanArtistCommand(message.Album.ArtistId, FilterFilesType.Matched));
+                   _commandQueueManager.Push(new RescanFoldersCommand());
                 }
             }
         }

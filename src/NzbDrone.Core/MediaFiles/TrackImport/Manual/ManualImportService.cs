@@ -94,7 +94,18 @@ namespace NzbDrone.Core.MediaFiles.TrackImport.Manual
                     return new List<ManualImportItem>();
                 }
 
-                var decision = _importDecisionMaker.GetImportDecisions(new List<IFileInfo> { _diskProvider.GetFileInfo(path) }, null, null, null, null, null, FilterFilesType.None, true, false, !replaceExistingFiles);
+                var files = new List<IFileInfo> { _diskProvider.GetFileInfo(path) };
+
+                var config = new ImportDecisionMakerConfig
+                {
+                    Filter = FilterFilesType.None,
+                    NewDownload = true,
+                    SingleRelease = false,
+                    IncludeExisting = !replaceExistingFiles,
+                    AddNewArtists = false
+                };
+
+                var decision = _importDecisionMaker.GetImportDecisions(files, null, null, config);
                 var result = MapItem(decision.First(), Path.GetDirectoryName(path), downloadId, replaceExistingFiles, false);
 
                 return new List<ManualImportItem> { result };
@@ -120,9 +131,26 @@ namespace NzbDrone.Core.MediaFiles.TrackImport.Manual
                 }
             }
 
-            var folderInfo = Parser.Parser.ParseMusicTitle(directoryInfo.Name);
             var artistFiles = _diskScanService.GetAudioFiles(folder).ToList();
-            var decisions = _importDecisionMaker.GetImportDecisions(artistFiles, artist, null, null, downloadClientItem, folderInfo, filter, true, false, !replaceExistingFiles);
+            var idOverrides = new IdentificationOverrides
+            {
+                Artist = artist
+            };
+            var itemInfo = new ImportDecisionMakerInfo
+            {
+                DownloadClientItem = downloadClientItem,
+                ParsedTrackInfo = Parser.Parser.ParseMusicTitle(directoryInfo.Name)
+            };
+            var config = new ImportDecisionMakerConfig
+            {
+                Filter = filter,
+                NewDownload = true,
+                SingleRelease = false,
+                IncludeExisting = !replaceExistingFiles,
+                AddNewArtists = false
+            };
+
+            var decisions = _importDecisionMaker.GetImportDecisions(artistFiles, idOverrides, itemInfo, config);
 
             // paths will be different for new and old files which is why we need to map separately
             var newFiles = artistFiles.Join(decisions,
@@ -152,7 +180,22 @@ namespace NzbDrone.Core.MediaFiles.TrackImport.Manual
 
                 var disableReleaseSwitching = group.First().DisableReleaseSwitching;
 
-                var decisions = _importDecisionMaker.GetImportDecisions(group.Select(x => _diskProvider.GetFileInfo(x.Path)).ToList(), group.First().Artist, group.First().Album, group.First().Release, null, null, FilterFilesType.None, true, true, !replaceExistingFiles);
+                var files = group.Select(x => _diskProvider.GetFileInfo(x.Path)).ToList();
+                var idOverride = new IdentificationOverrides
+                {
+                    Artist = group.First().Artist,
+                    Album = group.First().Album,
+                    AlbumRelease = group.First().Release
+                };
+                var config = new ImportDecisionMakerConfig
+                {
+                    Filter = FilterFilesType.None,
+                    NewDownload = true,
+                    SingleRelease = true,
+                    IncludeExisting = !replaceExistingFiles,
+                    AddNewArtists = false
+                };
+                var decisions = _importDecisionMaker.GetImportDecisions(files, idOverride, null, config);
 
                 var existingItems = group.Join(decisions,
                                                i => i.Path,
@@ -199,7 +242,6 @@ namespace NzbDrone.Core.MediaFiles.TrackImport.Manual
 
             item.Id = HashConverter.GetHashInt31(decision.Item.Path);
             item.Path = decision.Item.Path;
-            item.RelativePath = folder.GetRelativePath(decision.Item.Path);
             item.Name = Path.GetFileNameWithoutExtension(decision.Item.Path);
             item.DownloadId = downloadId;
 
